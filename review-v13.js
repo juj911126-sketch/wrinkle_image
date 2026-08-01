@@ -489,12 +489,35 @@
       var track = document.createElement('div');
       track.className = 'revbest-track';
       track.innerHTML = bestCardsHTML(M.bestData);
+      function openFromCard(card){
+        if(!card) return;
+        openReview({ idx: card.getAttribute('data-idx'), code: card.getAttribute('data-code') });
+      }
+      // PC: 클릭
       track.addEventListener('click', function(e){
         var card = e.target.closest && e.target.closest('.revbest-card');
         if(!card) return;
         e.preventDefault(); e.stopPropagation();
-        openReview({ idx: card.getAttribute('data-idx'), code: card.getAttribute('data-code') });
+        openFromCard(card);
       });
+      // 모바일: 터치가 스크롤인지 탭인지 구분 (손가락 이동 10px 이내면 탭으로 간주)
+      var tsX = 0, tsY = 0, tMoved = false;
+      track.addEventListener('touchstart', function(e){
+        var t = e.touches && e.touches[0]; if(!t) return;
+        tsX = t.clientX; tsY = t.clientY; tMoved = false;
+      }, {passive:true});
+      track.addEventListener('touchmove', function(e){
+        var t = e.touches && e.touches[0]; if(!t) return;
+        if(Math.abs(t.clientX - tsX) > 10 || Math.abs(t.clientY - tsY) > 10) tMoved = true;
+      }, {passive:true});
+      track.addEventListener('touchend', function(e){
+        if(tMoved) return; // 드래그(스크롤)면 무시
+        var tgt = e.target;
+        var card = tgt && tgt.closest ? tgt.closest('.revbest-card') : null;
+        if(!card) return;
+        e.preventDefault();
+        openFromCard(card);
+      }, {passive:false});
       parent.insertBefore(track, sw.nextSibling);
       sw.dataset.revbestDone = '1';
 
