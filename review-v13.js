@@ -560,19 +560,24 @@
         });
       });
 
-      // PC 마우스 드래그로 좌우 스크롤 (모바일 터치는 네이티브 스크롤이라 그대로)
+      // PC 마우스 드래그로 좌우 스크롤 + 관성(momentum) (모바일 터치는 네이티브)
       (function(){
         var dragging = false, startX = 0, startScroll = 0, dragMoved = false;
+        var lastX = 0, lastT = 0, velocity = 0, momentumId = null;
+
+        function stopMomentum(){ if(momentumId){ cancelAnimationFrame(momentumId); momentumId = null; } }
 
         // 링크/이미지 네이티브 드래그 자체를 차단 (텍스트 끌림, javascript:; 미리보기 방지)
         track.addEventListener('dragstart', function(e){ e.preventDefault(); });
 
         track.addEventListener('mousedown', function(e){
           if(e.button !== 0) return;
+          stopMomentum();
           dragging = true;
           dragMoved = false;
           startX = e.pageX;
           startScroll = track.scrollLeft;
+          lastX = e.pageX; lastT = Date.now(); velocity = 0;
           e.preventDefault();            // 텍스트 선택/링크 드래그 시작 차단
         });
 
@@ -582,6 +587,10 @@
           if(Math.abs(dx) > 4) dragMoved = true;
           track.scrollLeft = startScroll - dx;
           if(dragMoved){ track.style.cursor = 'grabbing'; }
+          // 순간 속도 계산 (px/ms)
+          var now = Date.now();
+          var dt = now - lastT;
+          if(dt > 0){ velocity = (e.pageX - lastX) / dt; lastX = e.pageX; lastT = now; }
         });
 
         document.addEventListener('mouseup', function(){
@@ -596,6 +605,18 @@
             };
             track.addEventListener('click', block, true);
             setTimeout(function(){ track.removeEventListener('click', block, true); }, 50);
+
+            // 관성 스크롤: 뗄 때 속도로 미끄러지다 마찰로 감속
+            var v = velocity * 16;   // px/frame(약 16ms) 환산
+            var friction = 0.94;     // 클수록 오래 미끄러짐 (0.90~0.96 권장)
+            function momentum(){
+              if(Math.abs(v) < 0.5){ momentumId = null; return; }
+              track.scrollLeft -= v;
+              v *= friction;
+              momentumId = requestAnimationFrame(momentum);
+            }
+            stopMomentum();
+            if(Math.abs(v) > 1) momentumId = requestAnimationFrame(momentum);
           }
         });
       })();
