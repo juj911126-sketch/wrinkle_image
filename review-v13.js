@@ -19,6 +19,64 @@
   var BUSY = false, deb = null;
   function J(){ return window.jQuery; }
 
+  // PC 마우스 드래그 + 관성 스크롤 (모바일 터치는 네이티브라 미적용). el 을 좌우로 끌 수 있게.
+  function attachDragScroll(el){
+    if(!el || el.__dragScrollDone) return;
+    el.__dragScrollDone = true;
+    var dragging = false, startX = 0, startScroll = 0, dragMoved = false;
+    var lastX = 0, lastT = 0, velocity = 0, momentumId = null;
+
+    function stopMomentum(){ if(momentumId){ cancelAnimationFrame(momentumId); momentumId = null; } }
+
+    el.addEventListener('dragstart', function(e){ e.preventDefault(); });
+
+    el.addEventListener('mousedown', function(e){
+      if(e.button !== 0) return;
+      stopMomentum();
+      dragging = true; dragMoved = false;
+      startX = e.pageX; startScroll = el.scrollLeft;
+      lastX = e.pageX; lastT = Date.now(); velocity = 0;
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e){
+      if(!dragging) return;
+      var dx = e.pageX - startX;
+      if(Math.abs(dx) > 4) dragMoved = true;
+      el.scrollLeft = startScroll - dx;
+      if(dragMoved){ el.style.cursor = 'grabbing'; }
+      var now = Date.now(), dt = now - lastT;
+      if(dt > 0){ velocity = (e.pageX - lastX) / dt; lastX = e.pageX; lastT = now; }
+    });
+
+    document.addEventListener('mouseup', function(){
+      if(!dragging) return;
+      dragging = false;
+      el.style.cursor = '';
+      if(dragMoved){
+        var block = function(ev){
+          ev.stopPropagation(); ev.preventDefault();
+          el.removeEventListener('click', block, true);
+        };
+        el.addEventListener('click', block, true);
+        setTimeout(function(){ el.removeEventListener('click', block, true); }, 50);
+
+        // 관성: 뗄 때 속도로 미끄러지다 마찰로 감속
+        var v = velocity * 8;    // 속도 증폭 (작을수록 살살). 6~10 권장
+        var friction = 0.92;     // 클수록 오래 미끄러짐. 0.90~0.95 권장
+        function momentum(){
+          if(Math.abs(v) < 0.5){ momentumId = null; return; }
+          el.scrollLeft -= v;
+          v *= friction;
+          momentumId = requestAnimationFrame(momentum);
+        }
+        stopMomentum();
+        if(Math.abs(v) > 1) momentumId = requestAnimationFrame(momentum);
+      }
+    });
+  }
+
+
   function currentProdIdx(){
     var el = document.querySelector('[data-prod-idx]');
     if(el){ var v = el.getAttribute('data-prod-idx'); if(v) return String(v); }
@@ -152,6 +210,9 @@
         $owl[0].parentNode.insertBefore(strip, $owl[0].nextSibling);
         $owl.css('display', 'none');
         $owl.data('revStripDone', true);
+
+        // PC 마우스 드래그 + 관성 (공통 함수)
+        attachDragScroll(strip);
 
         var navs = $owl.closest('.review_image_list').find('.nav_btn');
         if(navs.length >= 2){
@@ -560,66 +621,8 @@
         });
       });
 
-      // PC 마우스 드래그로 좌우 스크롤 + 관성(momentum) (모바일 터치는 네이티브)
-      (function(){
-        var dragging = false, startX = 0, startScroll = 0, dragMoved = false;
-        var lastX = 0, lastT = 0, velocity = 0, momentumId = null;
-
-        function stopMomentum(){ if(momentumId){ cancelAnimationFrame(momentumId); momentumId = null; } }
-
-        // 링크/이미지 네이티브 드래그 자체를 차단 (텍스트 끌림, javascript:; 미리보기 방지)
-        track.addEventListener('dragstart', function(e){ e.preventDefault(); });
-
-        track.addEventListener('mousedown', function(e){
-          if(e.button !== 0) return;
-          stopMomentum();
-          dragging = true;
-          dragMoved = false;
-          startX = e.pageX;
-          startScroll = track.scrollLeft;
-          lastX = e.pageX; lastT = Date.now(); velocity = 0;
-          e.preventDefault();            // 텍스트 선택/링크 드래그 시작 차단
-        });
-
-        document.addEventListener('mousemove', function(e){
-          if(!dragging) return;          // ★ 버튼 안 눌렀으면 절대 반응 안 함
-          var dx = e.pageX - startX;
-          if(Math.abs(dx) > 4) dragMoved = true;
-          track.scrollLeft = startScroll - dx;
-          if(dragMoved){ track.style.cursor = 'grabbing'; }
-          // 순간 속도 계산 (px/ms)
-          var now = Date.now();
-          var dt = now - lastT;
-          if(dt > 0){ velocity = (e.pageX - lastX) / dt; lastX = e.pageX; lastT = now; }
-        });
-
-        document.addEventListener('mouseup', function(){
-          if(!dragging) return;
-          dragging = false;
-          track.style.cursor = '';
-          // 드래그였다면 뒤이어 발생하는 클릭(리뷰 열기)을 한 번 막는다
-          if(dragMoved){
-            var block = function(ev){
-              ev.stopPropagation(); ev.preventDefault();
-              track.removeEventListener('click', block, true);
-            };
-            track.addEventListener('click', block, true);
-            setTimeout(function(){ track.removeEventListener('click', block, true); }, 50);
-
-            // 관성 스크롤: 뗄 때 속도로 미끄러지다 마찰로 감속
-            var v = velocity * 8;   // px/frame(약 16ms) 환산
-            var friction = 0.90;     // 클수록 오래 미끄러짐 (0.90~0.96 권장)
-            function momentum(){
-              if(Math.abs(v) < 0.5){ momentumId = null; return; }
-              track.scrollLeft -= v;
-              v *= friction;
-              momentumId = requestAnimationFrame(momentum);
-            }
-            stopMomentum();
-            if(Math.abs(v) > 1) momentumId = requestAnimationFrame(momentum);
-          }
-        });
-      })();
+      // PC 마우스 드래그 + 관성 (공통 함수)
+      attachDragScroll(track);
 
       parent.insertBefore(track, sw.nextSibling);
       sw.dataset.revbestDone = '1';
@@ -685,12 +688,13 @@
     }
     if(CFG.photoReverse){
       css+='.revphoto-strip{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;'
-         +   '-webkit-overflow-scrolling:touch}'
+         +   '-webkit-overflow-scrolling:touch;cursor:grab}'
          + '.revphoto-strip::-webkit-scrollbar{height:6px}'
          + '.revphoto-strip::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}'
          + '.revphoto-item{flex:0 0 auto;width:110px;height:110px;border-radius:6px;'
          +   'background-size:cover;background-position:center;background-repeat:no-repeat;'
-         +   'cursor:pointer;display:block}';
+         +   'cursor:pointer;display:block;'
+         +   '-webkit-user-select:none;user-select:none;-webkit-user-drag:none}';
     }
     s.textContent=css;
     document.head.appendChild(s);
