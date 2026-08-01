@@ -446,14 +446,14 @@
   function bestCardsHTML(data){
     return data.map(function(d){
       var stars='';
-      for(var i=0;i<5;i++) stars += '<span style="color:'+(i<d.stars?'#ff5a3c':'#e2e2e2')+'">★</span>';
-      return '<div class="revbest-card" data-idx="'+(d.detailIdx||'')+'" data-code="'+d.code+'">'
-           +   '<div class="revbest-txtwrap">'
-           +     '<div class="revbest-stars">'+stars+'</div>'
-           +     '<div class="revbest-text">'+escapeHtml(d.text)+'</div>'
-           +   '</div>'
-           +   '<div class="revbest-thumb" style="background-image:url('+d.img+')"></div>'
-           + '</div>';
+      for(var i=0;i<5;i++) stars += '<span style="color:'+(i<d.stars?'#ff5a3c':'#e2e2e2')+'">\u2605</span>';
+      return '<a class="revbest-card" href="javascript:;" data-idx="'+(d.detailIdx||'')+'" data-code="'+d.code+'">'
+           +   '<span class="revbest-txtwrap">'
+           +     '<span class="revbest-stars">'+stars+'</span>'
+           +     '<span class="revbest-text">'+escapeHtml(d.text)+'</span>'
+           +   '</span>'
+           +   '<span class="revbest-thumb" style="background-image:url('+d.img+')"></span>'
+           + '</a>';
     }).join('');
   }
 
@@ -461,6 +461,15 @@
     if(d.idx && window.SITE_SHOP_DETAIL && SITE_SHOP_DETAIL.viewReviewDetail){
       SITE_SHOP_DETAIL.viewReviewDetail(d.idx, 0, 'Y'); return;
     }
+    // 폴백 1: 카드 사진 파일명으로 owl(포토구매평) idx 맵에서 찾아 열기 (비로그인 대응)
+    if(d.img && window.SITE_SHOP_DETAIL && SITE_SHOP_DETAIL.viewReviewDetail){
+      var map = buildIdxMap();
+      var key = fileKey(d.img);
+      if(key && map[key]){
+        SITE_SHOP_DETAIL.viewReviewDetail(map[key], 0, 'Y'); return;
+      }
+    }
+    // 폴백 2: 목록에서 code 로 li 찾아 클릭 (로그인 상태)
     var $ = J();
     var $wrap = activeWrap();
     var $target = null;
@@ -489,9 +498,16 @@
       var track = document.createElement('div');
       track.className = 'revbest-track';
       track.innerHTML = bestCardsHTML(M.bestData);
+
       function openFromCard(card){
         if(!card) return;
-        openReview({ idx: card.getAttribute('data-idx'), code: card.getAttribute('data-code') });
+        var thumb = card.querySelector('.revbest-thumb');
+        var img = '';
+        if(thumb){
+          var mm = (thumb.getAttribute('style')||'').match(/url\(["']?([^"')]+)["']?\)/);
+          if(mm) img = mm[1];
+        }
+        openReview({ idx: card.getAttribute('data-idx'), code: card.getAttribute('data-code'), img: img });
       }
       // PC: 클릭
       track.addEventListener('click', function(e){
@@ -500,7 +516,7 @@
         e.preventDefault(); e.stopPropagation();
         openFromCard(card);
       });
-      // 모바일: 터치가 스크롤인지 탭인지 구분 (손가락 이동 10px 이내면 탭으로 간주)
+      // 모바일: 터치가 스크롤인지 탭인지 구분 (손가락 이동 10px 이내면 탭)
       var tsX = 0, tsY = 0, tMoved = false;
       track.addEventListener('touchstart', function(e){
         var t = e.touches && e.touches[0]; if(!t) return;
@@ -518,6 +534,7 @@
         e.preventDefault();
         openFromCard(card);
       }, {passive:false});
+
       parent.insertBefore(track, sw.nextSibling);
       sw.dataset.revbestDone = '1';
 
@@ -569,12 +586,13 @@
          + '.revbest-track::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}'
          + '.revbest-card{flex:0 0 auto;width:min(86%,360px);display:flex;gap:12px;'
          +   'background:#fff;border:1px solid #eee;border-radius:10px;padding:14px;'
-         +   'cursor:pointer;scroll-snap-align:start;box-sizing:border-box}'
-         + '.revbest-txtwrap{flex:1;min-width:0}'
-         + '.revbest-stars{font-size:13px;letter-spacing:1px;margin-bottom:6px}'
+         +   'cursor:pointer;scroll-snap-align:start;box-sizing:border-box;'
+         +   'text-decoration:none;color:inherit;-webkit-tap-highlight-color:rgba(0,0,0,0.05)}'
+         + '.revbest-txtwrap{flex:1;min-width:0;display:block}'
+         + '.revbest-stars{font-size:13px;letter-spacing:1px;margin-bottom:6px;display:block}'
          + '.revbest-text{font-size:13px;line-height:1.5;color:#333;overflow:hidden;'
          +   'display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical}'
-         + '.revbest-thumb{flex:0 0 auto;width:96px;height:96px;border-radius:8px;'
+         + '.revbest-thumb{flex:0 0 auto;width:96px;height:96px;border-radius:8px;display:block;'
          +   'background-size:cover;background-position:center;background-repeat:no-repeat}';
     }
     if(CFG.photoReverse){
