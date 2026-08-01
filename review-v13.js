@@ -607,8 +607,8 @@
             setTimeout(function(){ track.removeEventListener('click', block, true); }, 50);
 
             // 관성 스크롤: 뗄 때 속도로 미끄러지다 마찰로 감속
-            var v = velocity * 16;   // px/frame(약 16ms) 환산
-            var friction = 0.94;     // 클수록 오래 미끄러짐 (0.90~0.96 권장)
+            var v = velocity * 8;   // px/frame(약 16ms) 환산
+            var friction = 0.90;     // 클수록 오래 미끄러짐 (0.90~0.96 권장)
             function momentum(){
               if(Math.abs(v) < 0.5){ momentumId = null; return; }
               track.scrollLeft -= v;
