@@ -573,6 +573,7 @@
           dragMoved = false;
           startX = e.pageX;
           startScroll = track.scrollLeft;
+          track.style.scrollSnapType = 'none';   // 드래그 중엔 스냅 끄기 (부드럽게)
           e.preventDefault();            // 텍스트 선택/링크 드래그 시작 차단
         });
 
@@ -588,6 +589,7 @@
           if(!dragging) return;
           dragging = false;
           track.style.cursor = '';
+          track.style.scrollSnapType = '';       // 스냅 원복
           // 드래그였다면 뒤이어 발생하는 클릭(리뷰 열기)을 한 번 막는다
           if(dragMoved){
             var block = function(ev){
