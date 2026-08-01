@@ -573,7 +573,6 @@
           dragMoved = false;
           startX = e.pageX;
           startScroll = track.scrollLeft;
-          track.style.scrollSnapType = 'none';   // 드래그 중엔 스냅 끄기 (부드럽게)
           e.preventDefault();            // 텍스트 선택/링크 드래그 시작 차단
         });
 
@@ -589,7 +588,6 @@
           if(!dragging) return;
           dragging = false;
           track.style.cursor = '';
-          track.style.scrollSnapType = '';       // 스냅 원복
           // 드래그였다면 뒤이어 발생하는 클릭(리뷰 열기)을 한 번 막는다
           if(dragMoved){
             var block = function(ev){
@@ -648,12 +646,12 @@
          + '.revbest-active .review1,.revbest-active .review2{display:none!important}'
          + 'html.revbest-prehide .revbest-track,.revbest-active .revbest-track{display:flex!important;visibility:visible!important}'
          + '.revbest-track{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;'
-         +   'scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;cursor:grab}'
+         +   '-webkit-overflow-scrolling:touch;cursor:grab}'
          + '.revbest-track::-webkit-scrollbar{height:6px}'
          + '.revbest-track::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}'
          + '.revbest-card{flex:0 0 auto;width:min(86%,360px);display:flex;gap:12px;'
          +   'background:#fff;border:1px solid #eee;border-radius:10px;padding:14px;'
-         +   'cursor:pointer;scroll-snap-align:start;box-sizing:border-box;'
+         +   'cursor:pointer;box-sizing:border-box;'
          +   'text-decoration:none;color:inherit;-webkit-tap-highlight-color:rgba(0,0,0,0.05);'
          +   '-webkit-user-select:none;-moz-user-select:none;user-select:none;'
          +   '-webkit-user-drag:none}'
