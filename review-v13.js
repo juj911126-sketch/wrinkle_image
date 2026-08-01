@@ -536,33 +536,28 @@
       // 각 카드에 직접 이벤트를 건다 (트랙 위임보다 모바일에서 안정적)
       var cards = track.querySelectorAll('.revbest-card');
       Array.prototype.forEach.call(cards, function(card){
-        var sx = 0, sy = 0, moved = false, down = false;
+        var sx = 0, sy = 0, moved = false;
 
-        function press(x, y){ sx = x; sy = y; moved = false; down = true; }
+        function press(x, y){ sx = x; sy = y; moved = false; }
         function move(x, y){
-          if(!down) return;
           if(Math.abs(x - sx) > 10 || Math.abs(y - sy) > 10) moved = true;
         }
-        function release(e){
-          if(!down) return;
-          down = false;
-          if(moved) return;        // 드래그(스크롤)면 무시
-          if(e && e.preventDefault) e.preventDefault();
-          openFromCard(card);
-        }
 
-        // 포인터 이벤트 (마우스+터치 통합, 최신 브라우저)
+        // 스크롤인지 탭인지 판정만 pointer/touch로 (열기는 click에서)
         if(window.PointerEvent){
           card.addEventListener('pointerdown', function(e){ press(e.clientX, e.clientY); }, {passive:true});
           card.addEventListener('pointermove', function(e){ move(e.clientX, e.clientY); }, {passive:true});
-          card.addEventListener('pointerup', release, {passive:false});
         } else {
-          // 폴백: 터치 이벤트 (구형)
           card.addEventListener('touchstart', function(e){ var t=e.touches&&e.touches[0]; if(t) press(t.clientX,t.clientY); }, {passive:true});
           card.addEventListener('touchmove', function(e){ var t=e.touches&&e.touches[0]; if(t) move(t.clientX,t.clientY); }, {passive:true});
-          card.addEventListener('touchend', release, {passive:false});
-          card.addEventListener('click', function(e){ e.preventDefault(); openFromCard(card); });
         }
+
+        // 실제 열기는 네이티브 click 으로 (사파리 팝업 차단 회피)
+        card.addEventListener('click', function(e){
+          e.preventDefault();
+          if(moved){ moved = false; return; }  // 드래그(스크롤)였으면 무시
+          openFromCard(card);
+        });
       });
 
       parent.insertBefore(track, sw.nextSibling);
