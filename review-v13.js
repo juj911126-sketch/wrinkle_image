@@ -396,6 +396,17 @@
       var m2 = oc.match(/openAddReview\((\d+)/);
       if(m2) vd = m2[1];
     }
+    // 비로그인 상태: EditReviewShow("code","sxxxx","IDX") 의 3번째 인자가 idx
+    if(!vd){
+      var oc3 = ($li.find('[onclick*="EditReviewShow"]').attr('onclick')||'');
+      var m3 = oc3.match(/EditReviewShow\(\s*["'][^"']*["']\s*,\s*["'][^"']*["']\s*,\s*["']?(\d+)["']?/);
+      if(m3) vd = m3[1];
+    }
+    if(!vd){
+      var oc4 = ($li.find('[onclick*="DeleteShow"]').attr('onclick')||'');
+      var m4 = oc4.match(/DeleteShow\(\s*["'][^"']*["']\s*,\s*["'][^"']*["']\s*,\s*["']?(\d+)["']?/);
+      if(m4) vd = m4[1];
+    }
     return vd || '';
   }
   function liData($li, code){
@@ -458,10 +469,24 @@
   }
 
   function openReview(d){
+    // 0) 카드에 idx가 이미 있으면 바로 열기 (로그인 상태 등)
     if(d.idx && window.SITE_SHOP_DETAIL && SITE_SHOP_DETAIL.viewReviewDetail){
       SITE_SHOP_DETAIL.viewReviewDetail(d.idx, 0, 'Y'); return;
     }
-    // 폴백 1: 카드 사진 파일명으로 owl(포토구매평) idx 맵에서 찾아 열기 (비로그인 대응)
+    var $ = J();
+    var $wrap = activeWrap();
+    // 1) code 로 목록 li 를 찾아, 그 li 에서 idx 를 추출해 열기 (로그인/비로그인 공통)
+    if(d.code && $wrap && $wrap.length && window.SITE_SHOP_DETAIL && SITE_SHOP_DETAIL.viewReviewDetail){
+      var foundIdx = '';
+      $wrap.children('li').each(function(){
+        if(foundIdx) return;
+        if(liCode($(this)) === d.code){
+          foundIdx = liDetailIdx($(this));
+        }
+      });
+      if(foundIdx){ SITE_SHOP_DETAIL.viewReviewDetail(foundIdx, 0, 'Y'); return; }
+    }
+    // 2) 사진 파일명으로 owl(포토구매평) idx 맵에서 찾아 열기
     if(d.img && window.SITE_SHOP_DETAIL && SITE_SHOP_DETAIL.viewReviewDetail){
       var map = buildIdxMap();
       var key = fileKey(d.img);
@@ -469,9 +494,7 @@
         SITE_SHOP_DETAIL.viewReviewDetail(map[key], 0, 'Y'); return;
       }
     }
-    // 폴백 2: 목록에서 code 로 li 찾아 클릭 (로그인 상태)
-    var $ = J();
-    var $wrap = activeWrap();
+    // 3) 마지막 폴백: 목록 li 자체를 클릭
     var $target = null;
     $wrap.children('li').each(function(){
       if($target) return;
