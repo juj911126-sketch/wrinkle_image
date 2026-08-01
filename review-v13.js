@@ -532,31 +532,38 @@
         }
         openReview({ idx: card.getAttribute('data-idx'), code: card.getAttribute('data-code'), img: img });
       }
-      // PC: 클릭
-      track.addEventListener('click', function(e){
-        var card = e.target.closest && e.target.closest('.revbest-card');
-        if(!card) return;
-        e.preventDefault(); e.stopPropagation();
-        openFromCard(card);
+
+      // 각 카드에 직접 이벤트를 건다 (트랙 위임보다 모바일에서 안정적)
+      var cards = track.querySelectorAll('.revbest-card');
+      Array.prototype.forEach.call(cards, function(card){
+        var sx = 0, sy = 0, moved = false, down = false;
+
+        function press(x, y){ sx = x; sy = y; moved = false; down = true; }
+        function move(x, y){
+          if(!down) return;
+          if(Math.abs(x - sx) > 10 || Math.abs(y - sy) > 10) moved = true;
+        }
+        function release(e){
+          if(!down) return;
+          down = false;
+          if(moved) return;        // 드래그(스크롤)면 무시
+          if(e && e.preventDefault) e.preventDefault();
+          openFromCard(card);
+        }
+
+        // 포인터 이벤트 (마우스+터치 통합, 최신 브라우저)
+        if(window.PointerEvent){
+          card.addEventListener('pointerdown', function(e){ press(e.clientX, e.clientY); }, {passive:true});
+          card.addEventListener('pointermove', function(e){ move(e.clientX, e.clientY); }, {passive:true});
+          card.addEventListener('pointerup', release, {passive:false});
+        } else {
+          // 폴백: 터치 이벤트 (구형)
+          card.addEventListener('touchstart', function(e){ var t=e.touches&&e.touches[0]; if(t) press(t.clientX,t.clientY); }, {passive:true});
+          card.addEventListener('touchmove', function(e){ var t=e.touches&&e.touches[0]; if(t) move(t.clientX,t.clientY); }, {passive:true});
+          card.addEventListener('touchend', release, {passive:false});
+          card.addEventListener('click', function(e){ e.preventDefault(); openFromCard(card); });
+        }
       });
-      // 모바일: 터치가 스크롤인지 탭인지 구분 (손가락 이동 10px 이내면 탭)
-      var tsX = 0, tsY = 0, tMoved = false;
-      track.addEventListener('touchstart', function(e){
-        var t = e.touches && e.touches[0]; if(!t) return;
-        tsX = t.clientX; tsY = t.clientY; tMoved = false;
-      }, {passive:true});
-      track.addEventListener('touchmove', function(e){
-        var t = e.touches && e.touches[0]; if(!t) return;
-        if(Math.abs(t.clientX - tsX) > 10 || Math.abs(t.clientY - tsY) > 10) tMoved = true;
-      }, {passive:true});
-      track.addEventListener('touchend', function(e){
-        if(tMoved) return; // 드래그(스크롤)면 무시
-        var tgt = e.target;
-        var card = tgt && tgt.closest ? tgt.closest('.revbest-card') : null;
-        if(!card) return;
-        e.preventDefault();
-        openFromCard(card);
-      }, {passive:false});
 
       parent.insertBefore(track, sw.nextSibling);
       sw.dataset.revbestDone = '1';
