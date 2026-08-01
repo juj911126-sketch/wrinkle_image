@@ -563,34 +563,39 @@
       // PC 마우스 드래그로 좌우 스크롤 (모바일 터치는 네이티브 스크롤이라 그대로)
       (function(){
         var dragging = false, startX = 0, startScroll = 0, dragMoved = false;
+
+        // 링크/이미지 네이티브 드래그 자체를 차단 (텍스트 끌림, javascript:; 미리보기 방지)
+        track.addEventListener('dragstart', function(e){ e.preventDefault(); });
+
         track.addEventListener('mousedown', function(e){
-          // 왼쪽 버튼만
           if(e.button !== 0) return;
-          dragging = true; dragMoved = false;
+          dragging = true;
+          dragMoved = false;
           startX = e.pageX;
           startScroll = track.scrollLeft;
+          e.preventDefault();            // 텍스트 선택/링크 드래그 시작 차단
         });
-        window.addEventListener('mousemove', function(e){
-          if(!dragging) return;
+
+        document.addEventListener('mousemove', function(e){
+          if(!dragging) return;          // ★ 버튼 안 눌렀으면 절대 반응 안 함
           var dx = e.pageX - startX;
           if(Math.abs(dx) > 4) dragMoved = true;
-          if(dragMoved){
-            e.preventDefault();
-            track.scrollLeft = startScroll - dx;
-            track.style.cursor = 'grabbing';
-            track.style.userSelect = 'none';
-          }
+          track.scrollLeft = startScroll - dx;
+          if(dragMoved){ track.style.cursor = 'grabbing'; }
         });
-        window.addEventListener('mouseup', function(){
+
+        document.addEventListener('mouseup', function(){
           if(!dragging) return;
           dragging = false;
           track.style.cursor = '';
-          track.style.userSelect = '';
           // 드래그였다면 뒤이어 발생하는 클릭(리뷰 열기)을 한 번 막는다
           if(dragMoved){
-            var block = function(ev){ ev.stopPropagation(); ev.preventDefault(); track.removeEventListener('click', block, true); };
+            var block = function(ev){
+              ev.stopPropagation(); ev.preventDefault();
+              track.removeEventListener('click', block, true);
+            };
             track.addEventListener('click', block, true);
-            setTimeout(function(){ track.removeEventListener('click', block, true); }, 0);
+            setTimeout(function(){ track.removeEventListener('click', block, true); }, 50);
           }
         });
       })();
@@ -647,7 +652,9 @@
          + '.revbest-card{flex:0 0 auto;width:min(86%,360px);display:flex;gap:12px;'
          +   'background:#fff;border:1px solid #eee;border-radius:10px;padding:14px;'
          +   'cursor:pointer;scroll-snap-align:start;box-sizing:border-box;'
-         +   'text-decoration:none;color:inherit;-webkit-tap-highlight-color:rgba(0,0,0,0.05)}'
+         +   'text-decoration:none;color:inherit;-webkit-tap-highlight-color:rgba(0,0,0,0.05);'
+         +   '-webkit-user-select:none;-moz-user-select:none;user-select:none;'
+         +   '-webkit-user-drag:none}'
          + '.revbest-txtwrap{flex:1;min-width:0;display:block}'
          + '.revbest-stars{font-size:13px;letter-spacing:1px;margin-bottom:6px;display:block}'
          + '.revbest-text{font-size:13px;line-height:1.5;color:#333;overflow:hidden;'
