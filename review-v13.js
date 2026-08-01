@@ -560,6 +560,41 @@
         });
       });
 
+      // PC 마우스 드래그로 좌우 스크롤 (모바일 터치는 네이티브 스크롤이라 그대로)
+      (function(){
+        var dragging = false, startX = 0, startScroll = 0, dragMoved = false;
+        track.addEventListener('mousedown', function(e){
+          // 왼쪽 버튼만
+          if(e.button !== 0) return;
+          dragging = true; dragMoved = false;
+          startX = e.pageX;
+          startScroll = track.scrollLeft;
+        });
+        window.addEventListener('mousemove', function(e){
+          if(!dragging) return;
+          var dx = e.pageX - startX;
+          if(Math.abs(dx) > 4) dragMoved = true;
+          if(dragMoved){
+            e.preventDefault();
+            track.scrollLeft = startScroll - dx;
+            track.style.cursor = 'grabbing';
+            track.style.userSelect = 'none';
+          }
+        });
+        window.addEventListener('mouseup', function(){
+          if(!dragging) return;
+          dragging = false;
+          track.style.cursor = '';
+          track.style.userSelect = '';
+          // 드래그였다면 뒤이어 발생하는 클릭(리뷰 열기)을 한 번 막는다
+          if(dragMoved){
+            var block = function(ev){ ev.stopPropagation(); ev.preventDefault(); track.removeEventListener('click', block, true); };
+            track.addEventListener('click', block, true);
+            setTimeout(function(){ track.removeEventListener('click', block, true); }, 0);
+          }
+        });
+      })();
+
       parent.insertBefore(track, sw.nextSibling);
       sw.dataset.revbestDone = '1';
 
@@ -606,7 +641,7 @@
          + '.revbest-active .review1,.revbest-active .review2{display:none!important}'
          + 'html.revbest-prehide .revbest-track,.revbest-active .revbest-track{display:flex!important;visibility:visible!important}'
          + '.revbest-track{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;'
-         +   'scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}'
+         +   'scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;cursor:grab}'
          + '.revbest-track::-webkit-scrollbar{height:6px}'
          + '.revbest-track::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}'
          + '.revbest-card{flex:0 0 auto;width:min(86%,360px);display:flex;gap:12px;'
