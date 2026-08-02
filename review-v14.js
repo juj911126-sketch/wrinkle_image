@@ -472,14 +472,28 @@
   }
   function liData($li, code){
     var $ = J();
-    var img='';
-    var $bt=$li.find('.board_thumb').first();
-    if($bt.length){
-      var bg=$bt.attr('style')||'';
-      var mm=bg.match(/url\(["']?([^"')]+)["']?\)/);
-      if(mm) img=mm[1];
+    // 사진 여러 장 수집 (파일명 기준 중복 제거: ?w=300 썸네일과 원본이 같은 파일이면 하나로)
+    var imgs = [];
+    var seenFile = {};
+    function pushImg(url){
+      if(!url) return;
+      if(url.indexOf('no-image') !== -1 || url.indexOf('default_profile') !== -1) return;
+      var fk = fileKey(url) || url;   // 파일명(확장자 포함) 기준
+      if(seenFile[fk]) return;
+      seenFile[fk] = true;
+      imgs.push(url);
     }
-    if(!img){ var $im=$li.find('._review_img img, .thumb_detail_img_wrap img').first(); if($im.length) img=$im.attr('src')||''; }
+    // 배경이미지 썸네일들
+    $li.find('.board_thumb').each(function(){
+      var mm=($(this).attr('style')||'').match(/url\(["']?([^"')]+)["']?\)/);
+      if(mm) pushImg(mm[1]);
+    });
+    // img 태그들
+    $li.find('._review_img img, .thumb_detail_img_wrap img').each(function(){
+      pushImg($(this).attr('src')||'');
+    });
+
+    var img = imgs.length ? imgs[0] : '';   // 대표 사진(카드 썸네일용)
 
     var $body=$li.find('._review_body').first().clone();
     $body.find('.badge,.dummy,._block_review_command_,.more,._dummy').remove();
@@ -501,7 +515,7 @@
       }
     }catch(e){}
 
-    return { code:code, detailIdx: liDetailIdx($li), img:img, text:text, stars:stars, nick:nick };
+    return { code:code, detailIdx: liDetailIdx($li), img:img, imgs:imgs, text:text, stars:stars, nick:nick };
   }
 
   function extractBestData($wrap){
@@ -574,7 +588,7 @@
       +       '<div class="revview-nick"></div>'
       +     '</div>'
       +   '</div>'
-      +   '<div class="revview-imgwrap"><div class="revview-img"></div></div>'
+      +   '<div class="revview-imgwrap"></div>'
       +   '<div class="revview-body"></div>'
       +   '<button class="revview-arrow revview-prev" type="button" aria-label="이전">\u2039</button>'
       +   '<button class="revview-arrow revview-next" type="button" aria-label="다음">\u203a</button>'
@@ -632,21 +646,33 @@
     var ov = document.getElementById('revviewOverlay');
     if(!ov || !M.bestData || !M.bestData.length) return;
     var n = M.bestData.length;
-    var i = ((VIEWER.idx % n) + n) % n;   // 순환 인덱스
+    var i = ((VIEWER.idx % n) + n) % n;   // 순환 인덱스(리뷰)
     VIEWER.idx = i;
     var d = M.bestData[i];
+
+    var photos = (d.imgs && d.imgs.length) ? d.imgs : (d.img ? [d.img] : []);
 
     var stars = '';
     for(var k=0;k<5;k++) stars += '<span style="color:'+(k<d.stars?'#ff5a3c':'#e2e2e2')+'">\u2605</span>';
     ov.querySelector('.revview-stars').innerHTML = stars;
     ov.querySelector('.revview-nick').textContent = d.nick || '';
-    ov.querySelector('.revview-img').style.backgroundImage = d.img ? ('url('+d.img+')') : 'none';
+
+    // 사진 여러 장을 세로로 나열
+    var imgWrap = ov.querySelector('.revview-imgwrap');
+    imgWrap.innerHTML = photos.map(function(url){
+      return '<div class="revview-img" style="background-image:url('+url+')"></div>';
+    }).join('');
+
     ov.querySelector('.revview-body').innerHTML = '<span class="revview-badge">BEST</span> ' + escapeHtml(d.text||'');
 
-    // 리뷰가 1개뿐이면 화살표 숨김
+    // 좌우 화살표: 리뷰가 여러 개일 때만 (사진 장수와 무관)
     var showArrow = n > 1;
     ov.querySelector('.revview-prev').style.display = showArrow ? '' : 'none';
     ov.querySelector('.revview-next').style.display = showArrow ? '' : 'none';
+
+    // 리뷰가 바뀌면 뷰어 스크롤을 맨 위로
+    var boxEl = ov.querySelector('.revview-box');
+    if(boxEl) boxEl.scrollTop = 0;
   }
 
   function openBestViewer(startIdx){
@@ -662,6 +688,7 @@
     if(ov) ov.style.display = 'none';
     document.body.style.overflow = '';
   }
+  // 좌우 이동 = 리뷰 넘기기만 (사진은 세로 나열이라 넘기지 않음)
   function moveViewer(dir){
     VIEWER.idx += dir;
     renderViewer();
@@ -811,10 +838,10 @@
        + '.revview-headinfo{min-width:0}'
        + '.revview-stars{font-size:14px;letter-spacing:1px;line-height:1}'
        + '.revview-nick{font-size:13px;color:#555;margin-top:4px}'
-       + '.revview-imgwrap{width:100%;margin-bottom:14px;border-radius:8px;overflow:hidden;'
-       +   'background:#f5f5f5;cursor:grab;user-select:none}'
+       + '.revview-imgwrap{width:100%;margin-bottom:14px;cursor:grab;user-select:none}'
        + '.revview-img{width:100%;padding-top:100%;background-size:contain;background-position:center;'
-       +   'background-repeat:no-repeat;background-color:#f5f5f5}'
+       +   'background-repeat:no-repeat;background-color:#f5f5f5;border-radius:8px;margin-bottom:8px}'
+       + '.revview-img:last-child{margin-bottom:0}'
        + '.revview-body{font-size:14px;line-height:1.6;color:#222;white-space:pre-line;word-break:break-word}'
        + '.revview-badge{display:inline-block;font-size:11px;font-weight:700;color:#333;'
        +   'border:1px solid #333;border-radius:3px;padding:1px 5px;margin-right:6px;vertical-align:middle}'
