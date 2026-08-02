@@ -595,23 +595,35 @@
       else if(e.key === 'ArrowRight') moveViewer(1);
     });
     // 이미지 영역 좌우 스와이프 (모바일) + 드래그 (PC)
-    var box = ov.querySelector('.revview-imgwrap');
-    var sx = 0, moved = false, down = false;
-    function pStart(x){ sx = x; moved = false; down = true; }
-    function pMove(x){ if(down && Math.abs(x - sx) > 10) moved = true; }
+    var box = ov.querySelector('.revview-box');
+    var sx = 0, sy = 0, moved = false, down = false, horiz = false;
+    function pStart(x, y){ sx = x; sy = y; moved = false; down = true; horiz = false; }
+    function pMove(x, y){
+      if(!down) return;
+      var dx = x - sx, dy = y - sy;
+      if(!moved && (Math.abs(dx) > 8 || Math.abs(dy) > 8)){
+        moved = true;
+        horiz = Math.abs(dx) > Math.abs(dy);   // 가로 성분이 크면 가로 스와이프로 확정
+      }
+    }
     function pEnd(x){
       if(!down) return; down = false;
-      if(!moved) return;
+      if(!moved || !horiz) return;
       if(x - sx < -40) moveViewer(1);
       else if(x - sx > 40) moveViewer(-1);
     }
     if(window.PointerEvent){
-      box.addEventListener('pointerdown', function(e){ pStart(e.clientX); });
-      box.addEventListener('pointermove', function(e){ pMove(e.clientX); });
+      box.addEventListener('pointerdown', function(e){ pStart(e.clientX, e.clientY); });
+      box.addEventListener('pointermove', function(e){ pMove(e.clientX, e.clientY); });
       box.addEventListener('pointerup', function(e){ pEnd(e.clientX); });
     } else {
-      box.addEventListener('touchstart', function(e){ var t=e.touches[0]; if(t) pStart(t.clientX); }, {passive:true});
-      box.addEventListener('touchmove', function(e){ var t=e.touches[0]; if(t) pMove(t.clientX); }, {passive:true});
+      box.addEventListener('touchstart', function(e){ var t=e.touches[0]; if(t) pStart(t.clientX, t.clientY); }, {passive:true});
+      box.addEventListener('touchmove', function(e){
+        var t=e.touches[0]; if(!t) return;
+        pMove(t.clientX, t.clientY);
+        // 가로 스와이프로 판정되면 배경 스크롤 차단
+        if(moved && horiz && e.cancelable) e.preventDefault();
+      }, {passive:false});
       box.addEventListener('touchend', function(e){ var t=e.changedTouches[0]; if(t) pEnd(t.clientX); });
     }
   }
@@ -789,7 +801,8 @@
        +   'background:rgba(0,0,0,0.55);align-items:center;justify-content:center;padding:20px;box-sizing:border-box}'
        + '.revview-box{position:relative;background:#fff;border-radius:12px;width:100%;max-width:460px;'
        +   'max-height:90vh;overflow-y:auto;padding:20px 20px 24px;box-sizing:border-box;'
-       +   '-webkit-overflow-scrolling:touch}'
+       +   '-webkit-overflow-scrolling:touch;cursor:grab;'
+       +   '-webkit-user-select:none;-moz-user-select:none;user-select:none;touch-action:pan-y}'
        + '.revview-close{position:absolute;top:12px;right:14px;border:none;background:none;'
        +   'font-size:22px;line-height:1;color:#888;cursor:pointer;padding:4px;z-index:2}'
        + '.revview-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-right:30px}'
