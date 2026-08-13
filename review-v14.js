@@ -42,36 +42,37 @@
     }
 
     // 관성+스냅 통합: 손 뗀 속도로 목표 카드를 정하고 한 번의 부드러운 감속으로 안착
-    // scrollVelPx: scrollLeft 기준 속도(px/ms). +면 scrollLeft 증가 방향(왼쪽으로 미는 것)
-    function flingToCard(scrollVelPx){
+    // scrollVelPx: scrollLeft 기준 속도(px/ms). distK: 속도 반영 거리, dur: 감속 시간(ms)
+    function flingToCard(scrollVelPx, distK, dur){
       stopAll();
+      distK = distK || 180;
+      dur = dur || 480;
       var step = stepSize();
       if(step <= 0) return;
       var maxScroll = el.scrollWidth - el.clientWidth;
       var cur = el.scrollLeft;
 
-      // 속도를 "이동할 칸 수"로 환산 (빠를수록 여러 칸)
-      var projected = cur + scrollVelPx * 180;   // 180: 속도 반영 거리 계수 (클수록 멀리 감)
+      var projected = cur + scrollVelPx * distK;
       var idx;
       if(Math.abs(scrollVelPx) < 0.05){
-        idx = Math.round(cur / step);            // 거의 정지 → 가장 가까운 칸
+        idx = Math.round(cur / step);
       } else if(scrollVelPx > 0){
-        idx = Math.max(Math.ceil(cur / step), Math.round(projected / step)); // 최소 다음 칸
+        idx = Math.max(Math.ceil(cur / step), Math.round(projected / step));
       } else {
-        idx = Math.min(Math.floor(cur / step), Math.round(projected / step)); // 최소 이전 칸
+        idx = Math.min(Math.floor(cur / step), Math.round(projected / step));
       }
       var target = idx * step;
       if(target > maxScroll) target = maxScroll;
       if(target < 0) target = 0;
 
-      // 목표까지 한 번의 ease-out 감속으로 이동 (끊김 없음)
-      var start = cur, dist = target - cur, dur = 480, t0 = null;
+      var start = cur, dist = target - cur, t0 = null;
       if(Math.abs(dist) < 0.5) return;
-      function easeOutCubic(p){ return 1 - Math.pow(1 - p, 3); }
+      // ease-out quint: 마지막에 아주 완만하게 안착 (고급스러운 감속)
+      function easeOutQuint(p){ return 1 - Math.pow(1 - p, 5); }
       function anim(ts){
         if(t0 === null) t0 = ts;
         var p = Math.min(1, (ts - t0) / dur);
-        el.scrollLeft = start + dist * easeOutCubic(p);
+        el.scrollLeft = start + dist * easeOutQuint(p);
         if(p < 1) snapId = requestAnimationFrame(anim);
         else { el.scrollLeft = target; snapId = null; }
       }
@@ -111,8 +112,8 @@
         el.addEventListener('click', block, true);
         setTimeout(function(){ el.removeEventListener('click', block, true); }, 50);
 
-        // 관성+스냅 통합 (scrollLeft 기준 속도 = -마우스속도)
-        flingToCard(-velocity);
+        // 관성+스냅 통합 (PC: 속도 낮추고 감속 길게 → 고급스럽게)
+        flingToCard(-velocity, 100, 800);
       }
     });
 
@@ -148,8 +149,8 @@
       var block = function(ev){ ev.stopPropagation(); ev.preventDefault(); el.removeEventListener('click', block, true); };
       el.addEventListener('click', block, true);
       setTimeout(function(){ el.removeEventListener('click', block, true); }, 50);
-      // 관성+스냅 통합 (scrollLeft 기준 속도 = -터치속도)
-      flingToCard(-tVel);
+      // 관성+스냅 통합 (모바일: 기존 느낌 유지)
+      flingToCard(-tVel, 180, 750);
     });
   }
 
