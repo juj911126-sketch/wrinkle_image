@@ -41,35 +41,39 @@
       return w + gap;
     }
 
-    // 손 뗀 순간의 위치·속도·방향으로 목표 카드를 정해 부드럽게 이동 (되돌아가지 않음)
-    // vel: +면 오른쪽으로 미는 중(콘텐츠는 왼쪽으로), scrollLeft 감소 방향
-    function snapWithVelocity(scrollVel){
-      stopSnap();
+    // 관성+스냅 통합: 손 뗀 속도로 목표 카드를 정하고 한 번의 부드러운 감속으로 안착
+    // scrollVelPx: scrollLeft 기준 속도(px/ms). +면 scrollLeft 증가 방향(왼쪽으로 미는 것)
+    function flingToCard(scrollVelPx){
+      stopAll();
       var step = stepSize();
       if(step <= 0) return;
       var maxScroll = el.scrollWidth - el.clientWidth;
       var cur = el.scrollLeft;
-      var target;
 
-      if(Math.abs(scrollVel) < 0.3){
-        // 거의 정지 상태면 가장 가까운 카드로
-        target = Math.round(cur / step) * step;
-      } else if(scrollVel > 0){
-        // 콘텐츠가 오른쪽으로 흐르는 중(다음 카드로) → 올림
-        target = Math.ceil(cur / step) * step;
+      // 속도를 "이동할 칸 수"로 환산 (빠를수록 여러 칸)
+      var projected = cur + scrollVelPx * 180;   // 180: 속도 반영 거리 계수 (클수록 멀리 감)
+      var idx;
+      if(Math.abs(scrollVelPx) < 0.05){
+        idx = Math.round(cur / step);            // 거의 정지 → 가장 가까운 칸
+      } else if(scrollVelPx > 0){
+        idx = Math.max(Math.ceil(cur / step), Math.round(projected / step)); // 최소 다음 칸
       } else {
-        // 이전 카드로 → 내림
-        target = Math.floor(cur / step) * step;
+        idx = Math.min(Math.floor(cur / step), Math.round(projected / step)); // 최소 이전 칸
       }
-
+      var target = idx * step;
       if(target > maxScroll) target = maxScroll;
       if(target < 0) target = 0;
 
-      function anim(){
-        var diff = target - el.scrollLeft;
-        if(Math.abs(diff) < 0.5){ el.scrollLeft = target; snapId = null; return; }
-        el.scrollLeft += diff * 0.18;   // 부드러운 감속 (0.12 더 부드럽게 ~ 0.25 더 빠르게)
-        snapId = requestAnimationFrame(anim);
+      // 목표까지 한 번의 ease-out 감속으로 이동 (끊김 없음)
+      var start = cur, dist = target - cur, dur = 480, t0 = null;
+      if(Math.abs(dist) < 0.5) return;
+      function easeOutCubic(p){ return 1 - Math.pow(1 - p, 3); }
+      function anim(ts){
+        if(t0 === null) t0 = ts;
+        var p = Math.min(1, (ts - t0) / dur);
+        el.scrollLeft = start + dist * easeOutCubic(p);
+        if(p < 1) snapId = requestAnimationFrame(anim);
+        else { el.scrollLeft = target; snapId = null; }
       }
       snapId = requestAnimationFrame(anim);
     }
@@ -107,19 +111,8 @@
         el.addEventListener('click', block, true);
         setTimeout(function(){ el.removeEventListener('click', block, true); }, 50);
 
-        // 관성: 뗄 때 속도로 미끄러지다 마찰로 감속 → 끝나면 방향 기반 카드 스냅
-        var v = velocity * 8;    // 속도 증폭 (작을수록 살살). 6~10 권장
-        var friction = 0.92;     // 클수록 오래 미끄러짐. 0.90~0.95 권장
-        var scrollDir = -v;      // scrollLeft 변화 방향(부호). 관성 내내 동일
-        function momentum(){
-          if(Math.abs(v) < 0.5){ momentumId = null; snapWithVelocity(scrollDir); return; }
-          el.scrollLeft -= v;
-          v *= friction;
-          momentumId = requestAnimationFrame(momentum);
-        }
-        stopAll();
-        if(Math.abs(v) > 1) momentumId = requestAnimationFrame(momentum);
-        else snapWithVelocity(scrollDir);
+        // 관성+스냅 통합 (scrollLeft 기준 속도 = -마우스속도)
+        flingToCard(-velocity);
       }
     });
 
@@ -155,17 +148,8 @@
       var block = function(ev){ ev.stopPropagation(); ev.preventDefault(); el.removeEventListener('click', block, true); };
       el.addEventListener('click', block, true);
       setTimeout(function(){ el.removeEventListener('click', block, true); }, 50);
-      // 관성 (모바일은 더 시원하게) → 끝나면 방향 기반 카드 스냅
-      var v = tVel * 14, friction = 0.93;
-      var scrollDir = -v;
-      function momentum(){
-        if(Math.abs(v) < 0.5){ momentumId = null; snapWithVelocity(scrollDir); return; }
-        el.scrollLeft -= v; v *= friction;
-        momentumId = requestAnimationFrame(momentum);
-      }
-      stopAll();
-      if(Math.abs(v) > 1) momentumId = requestAnimationFrame(momentum);
-      else snapWithVelocity(scrollDir);
+      // 관성+스냅 통합 (scrollLeft 기준 속도 = -터치속도)
+      flingToCard(-tVel);
     });
   }
 
