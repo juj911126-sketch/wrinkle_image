@@ -74,6 +74,49 @@
         if(Math.abs(v) > 1) momentumId = requestAnimationFrame(momentum);
       }
     });
+
+    // ===== 터치 스와이프 (웨일 모바일 등 네이티브 가로스크롤 안 되는 환경 대응) =====
+    var tDown = false, tStartX = 0, tStartY = 0, tStartScroll = 0, tMoved = false, tHoriz = false;
+    var tLastX = 0, tLastT = 0, tVel = 0;
+    el.addEventListener('touchstart', function(e){
+      var t = e.touches[0]; if(!t) return;
+      stopMomentum();
+      tDown = true; tMoved = false; tHoriz = false;
+      tStartX = t.clientX; tStartY = t.clientY; tStartScroll = el.scrollLeft;
+      tLastX = t.clientX; tLastT = Date.now(); tVel = 0;
+    }, {passive:true});
+    el.addEventListener('touchmove', function(e){
+      if(!tDown) return;
+      var t = e.touches[0]; if(!t) return;
+      var dx = t.clientX - tStartX, dy = t.clientY - tStartY;
+      if(!tMoved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){
+        tMoved = true;
+        tHoriz = Math.abs(dx) > Math.abs(dy);   // 가로 성분이 크면 가로 스와이프
+      }
+      if(tMoved && tHoriz){
+        el.scrollLeft = tStartScroll - dx;
+        if(e.cancelable) e.preventDefault();     // 가로 스와이프 시 세로 스크롤 방지
+        var now = Date.now(), dt = now - tLastT;
+        if(dt > 0){ tVel = (t.clientX - tLastX) / dt; tLastX = t.clientX; tLastT = now; }
+      }
+    }, {passive:false});
+    el.addEventListener('touchend', function(){
+      if(!tDown) return; tDown = false;
+      if(!tMoved || !tHoriz) return;
+      // 탭 클릭이 뒤따르면 막기 (드래그였으므로)
+      var block = function(ev){ ev.stopPropagation(); ev.preventDefault(); el.removeEventListener('click', block, true); };
+      el.addEventListener('click', block, true);
+      setTimeout(function(){ el.removeEventListener('click', block, true); }, 50);
+      // 관성
+      var v = tVel * 8, friction = 0.92;
+      function momentum(){
+        if(Math.abs(v) < 0.5){ momentumId = null; return; }
+        el.scrollLeft -= v; v *= friction;
+        momentumId = requestAnimationFrame(momentum);
+      }
+      stopMomentum();
+      if(Math.abs(v) > 1) momentumId = requestAnimationFrame(momentum);
+    });
   }
 
 
@@ -796,7 +839,7 @@
          + '.revbest-active .review1,.revbest-active .review2{display:none!important}'
          + 'html.revbest-prehide .revbest-track,.revbest-active .revbest-track{display:flex!important;visibility:visible!important}'
          + '.revbest-track{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;'
-         +   '-webkit-overflow-scrolling:touch;cursor:grab}'
+         +   '-webkit-overflow-scrolling:touch;cursor:grab;touch-action:pan-x}'
          + '.revbest-track::-webkit-scrollbar{height:6px}'
          + '.revbest-track::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}'
          + '.revbest-card{flex:0 0 auto;width:min(86%,360px);display:flex;gap:12px;'
@@ -814,7 +857,7 @@
     }
     if(CFG.photoReverse){
       css+='.revphoto-strip{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;'
-         +   '-webkit-overflow-scrolling:touch;cursor:grab}'
+         +   '-webkit-overflow-scrolling:touch;cursor:grab;touch-action:pan-x}'
          + '.revphoto-strip::-webkit-scrollbar{height:6px}'
          + '.revphoto-strip::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}'
          + '.revphoto-item{flex:0 0 auto;width:110px;height:110px;border-radius:6px;'
