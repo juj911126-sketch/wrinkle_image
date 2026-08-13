@@ -929,7 +929,8 @@
        +   'display:flex;align-items:center;justify-content:center}'
        + '.revview-prev{left:-8px}'
        + '.revview-next{right:-8px}'
-       + '@media (max-width:520px){.revview-prev{left:2px}.revview-next{right:2px}}';
+       + '@media (max-width:520px){.revview-prev{left:2px}.revview-next{right:2px}}'
+       + 'a[onclick*="getOnlyPhotoReview"]{display:none !important;}';   // '포토 구매평만 보기' 버튼 숨김
     s.textContent=css;
     document.head.appendChild(s);
 
